@@ -5,32 +5,36 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>TravelBuddy AI</title>
+    <title>TravelBuddy</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,620&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
 
-    <div class="page-bg">
-        <div class="gradient-circle circle-1"></div>
-        <div class="gradient-circle circle-2"></div>
-        <div class="gradient-circle circle-3"></div>
-    </div>
+    <header class="site-header">
+        <div class="wordmark">TravelBuddy</div>
+        <div class="header-note">
+            <span class="status-dot"></span>
+            Desk open
+        </div>
+    </header>
 
     <main class="app-container">
 
         <section class="hero-section">
-            <div class="badge">
-                ✈️ TravelBuddy AI — A Multi-Agent Travel Planner with LangGraph
-            </div>
+            <p class="badge">Trip planning, reviewed before it ships</p>
 
             <h1>
-                Plan Your Perfect Trip with AI
+                Where to next?
             </h1>
 
             <p>
-                Search flights, discover hotels, and generate a complete travel itinerary using a multi-agent LangGraph system.
+                Flights, stays, weather, and a budget check — then a draft you can
+                approve or send back with notes.
             </p>
         </section>
 
@@ -38,55 +42,65 @@
 
             <div class="card-header">
                 <div>
-                    <h2>Where do you want to go?</h2>
+                    <h2>Write the brief</h2>
                     <p>
-                        Example: Plan a complete 7 days Japan trip from Bangladesh under 2 lakhs.
+                        Example: a 7-day Japan trip from Bangladesh, under 2 lakhs,
+                        with flights, hotels, and sightseeing.
                     </p>
-                </div>
-
-                <div class="status-pill">
-                    <span class="status-dot"></span>
-                    Online
                 </div>
             </div>
 
             <div class="input-area">
                 <textarea
                     id="userInput"
-                    placeholder="Plan a complete 7 days Japan trip including flights, hotels and sightseeing under 2 lakhs..."
+                    placeholder="A week in Japan from Dhaka. Mid-range hotels, one free afternoon, keep meals reasonable..."
                 ></textarea>
 
-                <button id="sendBtn" onclick="sendMessage()">
-                    <span id="btnText">Generate Plan</span>
-                    <span id="btnLoader" class="loader hidden"></span>
-                </button>
+                <div class="composer-bar">
+                    <div class="quick-prompts">
+                        <button onclick="setPrompt('Plan a complete 7 days Japan trip from Bangladesh including flights, hotels and sightseeing under 2 lakhs.')">
+                            Japan
+                        </button>
+
+                        <button onclick="setPrompt('Plan a 5 days Dubai trip from Dhaka with flights, hotels and sightseeing.')">
+                            Dubai
+                        </button>
+
+                        <button onclick="setPrompt('Plan a 7 days Thailand trip from Bangladesh with budget hotels and sightseeing.')">
+                            Thailand
+                        </button>
+
+                        <button onclick="setPrompt('Give me all country flight info.')">
+                            Routes
+                        </button>
+                    </div>
+
+                    <button id="sendBtn" onclick="sendMessage()">
+                        <span id="btnText">Prepare draft</span>
+                        <span id="btnLoader" class="loader hidden"></span>
+                    </button>
+                </div>
             </div>
 
-            <div class="quick-prompts">
-                <button onclick="setPrompt('Plan a complete 7 days Japan trip from Bangladesh including flights, hotels and sightseeing under 2 lakhs.')">
-                    Japan Trip
-                </button>
+        </section>
 
-                <button onclick="setPrompt('Plan a 5 days Dubai trip from Dhaka with flights, hotels and sightseeing.')">
-                    Dubai Trip
-                </button>
-
-                <button onclick="setPrompt('Plan a 7 days Thailand trip from Bangladesh with budget hotels and sightseeing.')">
-                    Thailand Trip
-                </button>
-
-                <button onclick="setPrompt('Give me all country flight info.')">
-                    Global Flights
-                </button>
+        <section id="workflowSection" class="workflow-section hidden">
+            <div class="workflow-header">
+                <div>
+                    <span class="eyebrow">Routing</span>
+                    <h2>What we will run</h2>
+                </div>
+                <span id="guardrailBadge" class="guardrail-badge">Request accepted</span>
             </div>
-
+            <p id="supervisorReasoning" class="supervisor-reasoning"></p>
+            <div id="agentChips" class="agent-chips"></div>
         </section>
 
         <section id="resultSection" class="result-section hidden">
 
             <div class="result-header">
                 <div>
-                    <h2>Your AI Travel Plan</h2>
+                    <h2 id="resultTitle">Your itinerary</h2>
                     <p id="threadInfo">Thread ID: -</p>
                 </div>
 
@@ -96,16 +110,42 @@
                     </button>
 
                     <button class="download-btn" onclick="downloadPDF()">
-                        Download PDF
+                        Save PDF
                     </button>
                 </div>
             </div>
 
             <div id="pdfContent" class="pdf-content">
-                <h1 class="pdf-title">AI Travel Plan</h1>
+                <h1 class="pdf-title">Travel plan</h1>
                 <div id="resultBox" class="result-box"></div>
             </div>
 
+        </section>
+
+        <section id="approvalSection" class="approval-section hidden">
+            <div class="approval-icon" aria-hidden="true"></div>
+            <div class="approval-content">
+                <span class="eyebrow">Your review</span>
+                <h2>Look over the draft</h2>
+                <p id="approvalRequest">
+                    Approve it as-is, or leave notes and we will revise before the final version.
+                </p>
+
+                <textarea
+                    id="approvalFeedback"
+                    class="feedback-input"
+                    placeholder="e.g. cheaper hotels, one unscheduled day, skip the last-minute flight..."
+                ></textarea>
+
+                <div class="approval-actions">
+                    <button id="approveBtn" class="approve-btn" onclick="submitApproval(true)">
+                        Approve final
+                    </button>
+                    <button id="reviseBtn" class="revise-btn" onclick="submitApproval(false)">
+                        Send notes back
+                    </button>
+                </div>
+            </div>
         </section>
 
         <section id="errorBox" class="error-box hidden"></section>
@@ -113,7 +153,7 @@
     </main>
 
     <footer>
-        Built with FastAPI, LangGraph, Groq, PostgreSQL, Tavily and AviationStack
+        TravelBuddy · itineraries leave the desk only after you say so
     </footer>
 
     <!-- Markdown Renderer -->

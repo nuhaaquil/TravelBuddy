@@ -6,9 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from backend import run_travel_agent
+from backend import run_travel_agent, resume_travel_agent
+
+# This is kept from the original project to allow the existing synchronous
+# agent functions to call async MCP helpers inside FastAPI.
+import nest_asyncio
+nest_asyncio.apply()
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -35,6 +40,12 @@ templates = Jinja2Templates(
 class TravelRequest(BaseModel):
     message: str
     thread_id: str | None = None
+
+
+class ApprovalRequest(BaseModel):
+    thread_id: str = Field(min_length=1)
+    approved: bool
+    feedback: str = ""
 
 
 
@@ -69,17 +80,50 @@ async def travel_planner(request_data: TravelRequest):
         return JSONResponse(
             content={
                 "success": True,
-                "thread_id": result["thread_id"],
-                "answer": result["answer"],
-                "flight_results": result["flight_results"],
-                "hotel_results": result["hotel_results"],
-                "itinerary": result["itinerary"],
-                "llm_calls": result["llm_calls"],
+                **result,
             }
         )
 
     except Exception as e:
         print("ERROR:", e)
+        traceback.print_exc()
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(e)
+            }
+        )
+
+
+@app.post("/api/travel/approve")
+async def approve_travel_plan(request_data: ApprovalRequest):
+    try:
+        if not request_data.approved and not request_data.feedback.strip():
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": "Please provide revision feedback when rejecting the draft.",
+                },
+            )
+
+        result = resume_travel_agent(
+            thread_id=request_data.thread_id,
+            approved=request_data.approved,
+            feedback=request_data.feedback,
+        )
+
+        return JSONResponse(
+            content={
+                "success": True,
+                **result,
+            }
+        )
+
+    except Exception as e:
+        print("APPROVAL ERROR:", e)
         traceback.print_exc()
 
         return JSONResponse(
